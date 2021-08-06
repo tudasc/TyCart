@@ -9,3 +9,4 @@ void foo(const void* data) {
 }
 
 // CHECK-NOT: Error
+// CHECK: tycart_assert_(i32 22, i8* %{{[0-9]+}}, i64 1, i64 8, i32 6)
