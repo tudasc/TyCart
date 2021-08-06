@@ -26,7 +26,25 @@
 *.a
 *.lib
 
-# Executables
-*.exe
-*.out
-*.app
+# Build folder
+build*/
+
+# Compilation Database and others
+compile_commands.json
+CMakeLists.txt.user
+
+# Misc folder
+.settings/
+
+# CLion
+.idea/
+
+# llvm-lit related
+test/**/Output/
+test/*/*.ll
+test/*/*.s
+test/*/*.o
+test/**/*.log
+test/**/*.exe
+test/**/*.yaml
+test/**/*.profraw

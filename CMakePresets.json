@@ -1,0 +1,56 @@
+{
+  "version": 2,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 20,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "clang-toolchain",
+      "hidden": true,
+      "generator": "Unix Makefiles",
+      "cacheVariables": {
+        "CMAKE_C_COMPILER": "clang",
+        "CMAKE_CXX_COMPILER": "clang++"
+      }
+    },
+    {
+      "name": "develop",
+      "displayName": "Development config (debug)",
+      "description": "Default develop build options for Clang",
+      "binaryDir": "${sourceDir}/build",
+      "inherits": [
+        "clang-toolchain"
+      ],
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "TEST_CONFIG": "ON",
+        "SOFTCOUNTERS": "ON"
+      }
+    },
+    {
+      "name": "release",
+      "displayName": "Release config",
+      "description": "Default release build options for Clang",
+      "binaryDir": "${sourceDir}/build_release",
+      "inherits": [
+        "clang-toolchain"
+      ],
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release"
+      }
+    },
+    {
+      "name": "release-counter",
+      "displayName": "Release config (w/ runtime counters)",
+      "description": "Default release build options with softcounter for Clang",
+      "inherits": [
+        "release"
+      ],
+      "cacheVariables": {
+        "SOFTCOUNTERS": "ON"
+      }
+    }
+  ]
+}
