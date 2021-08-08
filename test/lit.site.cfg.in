@@ -10,6 +10,9 @@ import sys
 # config.typeart_pass = "$<TARGET_FILE_NAME:typeart::TransformPass>"
 # config.typeart_analysis_pass = "$<TARGET_FILE_NAME:typeart::MemOpFinderPass>"
 
+config.typeart_pass = "$<TARGET_FILE:typeart::TransformPass>"
+config.typeart_analysis_pass = "$<TARGET_FILE:typeart::MemOpFinderPass>"
+
 config.tycart_base_lib_dir = "@TYCART_BASE_LIBRARY_DIR@"
 config.tycart_pass_dir = "@TYCART_PASS_DIR@"
 config.tycart_rt_dir = "@TYCART_RT_DIR@"
