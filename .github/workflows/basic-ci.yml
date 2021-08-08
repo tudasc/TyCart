@@ -53,6 +53,9 @@ jobs:
       - name: Install Clang
         run: sudo apt-get install clang-10 clang-tidy-10
 
+      - name: Install OpenMPI
+        run: sudo apt-get install libopenmpi-dev openmpi-bin
+
       - name: Setup env
         run: |
           sudo ln -f -s /usr/bin/clang-10 /usr/bin/clang
