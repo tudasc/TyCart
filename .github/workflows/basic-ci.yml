@@ -1,0 +1,76 @@
+name: TyCart-CI
+
+on:
+  push:
+    branches: [ master, devel ]
+  pull_request:
+
+env:
+  CXX: clang++-10
+  CC: clang-10
+  EXTERNAL_LIT: /usr/lib/llvm-10/build/utils/lit/lit.py
+  OMP_NUM_THREAD: 2
+
+jobs:
+  format-check:
+    runs-on: ubuntu-20.04
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Format source code
+        run: |
+          find lib test \
+            -type f \
+            -name "*.c" -o -name "*.cpp" -o -name "*.h" \
+            -print0 \
+            | xargs -0 clang-format-10 -i
+
+      - name: List newly formatted files
+        run: git status --porcelain --untracked-files=no
+
+      - name: Check format
+        run: git status --porcelain --untracked-files=no | xargs -o -I {} test -z \"{}\"
+
+  lit-suite:
+    runs-on: ubuntu-20.04
+    if: "!contains(github.event.head_commit.message, '[ci skip]')"
+    strategy:
+      fail-fast: false
+      matrix:
+        preset:
+          - name: develop
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Update apt
+        run: sudo apt-get update
+
+      - name: Install LLVM
+        run: sudo apt-get install libllvm10 llvm-10 llvm-10-dev
+
+      - name: Install Clang
+        run: sudo apt-get install clang-10 clang-tidy-10
+
+      - name: Install OpenMPI
+        run: sudo apt-get install libopenmpi-dev openmpi-bin
+
+      - name: Setup env
+        run: |
+          sudo ln -f -s /usr/bin/clang-10 /usr/bin/clang
+          sudo ln -f -s /usr/bin/clang++-10 /usr/bin/clang++
+          sudo ln -f -s /usr/bin/opt-10 /usr/bin/opt
+          sudo ln -f -s /usr/bin/FileCheck-10 /usr/bin/FileCheck
+          sudo ln -f -s /usr/bin/llc-10 /usr/bin/llc
+          sudo ln -f -s /usr/bin/clang-tidy-10 /usr/bin/clang-tidy
+
+      - name: Configure TyCart
+        run: cmake -B build --preset ${{ matrix.preset.name }} -DLLVM_EXTERNAL_LIT=${EXTERNAL_LIT}
+
+      - name: Build TyCart
+        run: cmake --build build --parallel 2
+
+      - name: Test TyCart lit-suite
+        if: matrix.preset.skip_test == false
+        run: cmake --build build --target lit-tycart-test

@@ -5,8 +5,8 @@
 
 void foo(const void* data) {
   double* typeart_type_id_placeholder = NULL;
-  tycart_assert_stub_(data, typeart_type_id_placeholder, 1, 22);
+  tycart_assert_auto_stub_(data, typeart_type_id_placeholder, 22);
 }
 
 // CHECK-NOT: Error
-// CHECK: tycart_assert_(i32 22, i8* %{{[0-9]+}}, i64 1, i64 8, i32 6)
+// CHECK: tycart_assert_auto_(i32 22, i8* %{{[0-9]+}}, i64 8, i32 6)
