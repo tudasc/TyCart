@@ -138,17 +138,25 @@ inline llvm::Error make_string_error(const char* message) {
 }
 
 struct TycartAssertArgs {
-  Value* buffer;
-  Value* length;
-  Value* checkpoint_id;
-  Value* type_size;
-  Value* typeart_type_id;
+  Value* buffer{nullptr};
+  Value* length{nullptr};
+  Value* checkpoint_id{nullptr};
+  Value* type_size{nullptr};
+  Value* typeart_type_id{nullptr};
   analysis::AssertData assert;
 };
 
 llvm::raw_ostream& operator<<(llvm::raw_ostream& os, const TycartAssertArgs& args) {
-  os << "Buffer: " << *args.buffer << "| Length: " << *args.length << "| Check id: " << *args.checkpoint_id
-     << "| Size: " << *args.type_size << "| Type ID: " << *args.typeart_type_id;
+  const auto dump = [&os](auto* pointer) {
+    if (pointer) {
+      os << *pointer;
+      return "";
+    }
+    return "NULL";
+  };
+  os << "Buffer: " << dump(args.buffer) << "| Length: " << dump(args.length)
+     << "| Check id: " << dump(args.checkpoint_id) << "| Size: " << dump(args.type_size)
+     << "| Type ID: " << dump(args.typeart_type_id);
 
   return os;
 }
@@ -161,6 +169,55 @@ class AssertStubCollector {
  public:
   AssertStubCollector(Function* f, DataLayout* dl, const typeart::TypeGenerator* type_gen)
       : f_(f), dl_(dl), type_gen_(type_gen) {
+  }
+
+  Expected<TycartAssertArgs> handleTycartFTI(const analysis::AssertData& ad) const {
+    auto* assert_stub = ad.call;
+
+    assert(assert_stub->arg_size() >= 1);
+
+    Value* arg_type = assert_stub->getArgOperand(0);
+
+    if (!arg_type) {
+      return {make_string_error("Error type argument of assert stub is null.")};
+    }
+
+    auto typeart_data = getTypeData(arg_type);
+
+    if (!typeart_data) {
+      return {typeart_data.takeError()};
+    }
+
+    return TycartAssertArgs{nullptr, nullptr, nullptr, nullptr, typeart_data->typeart_type_id, ad};
+  }
+
+  Expected<TycartAssertArgs> handleTycartAuto(const analysis::AssertData& ad) const {
+    auto* assert_stub = ad.call;
+
+    assert(assert_stub->arg_size() >= 3);
+
+    Value* arg_buffer        = assert_stub->getArgOperand(0);
+    Value* arg_type          = assert_stub->getArgOperand(1);
+    Value* arg_checkpoint_id = assert_stub->getArgOperand(2);
+
+    if (!arg_buffer) {
+      return {make_string_error("Error buffer argument of assert stub is null.")};
+    }
+    if (!arg_type) {
+      return {make_string_error("Error type argument of assert stub is null.")};
+    }
+    if (!arg_checkpoint_id) {
+      return {make_string_error("Error checkpoint argument of assert stub is null.")};
+    }
+
+    auto typeart_data = getTypeData(arg_type);
+
+    if (!typeart_data) {
+      return {typeart_data.takeError()};
+    }
+
+    return TycartAssertArgs{
+        arg_buffer, nullptr, arg_checkpoint_id, typeart_data->type_size, typeart_data->typeart_type_id, ad};
   }
 
   Expected<TycartAssertArgs> handleTycart(const analysis::AssertData& ad) const {
@@ -186,12 +243,29 @@ class AssertStubCollector {
       return {make_string_error("Error checkpoint argument of assert stub is null.")};
     }
 
+    auto typeart_data = getTypeData(arg_type);
+
+    if (!typeart_data) {
+      return {typeart_data.takeError()};
+    }
+
+    return TycartAssertArgs{
+        arg_buffer, arg_length, arg_checkpoint_id, typeart_data->type_size, typeart_data->typeart_type_id, ad};
+  }
+
+ private:
+  struct TypeData {
+    int type_id{-1};
+    Value* type_size{nullptr};
+    Value* typeart_type_id{nullptr};
+  };
+
+  Expected<TypeData> getTypeData(Value* arg_type) const {
     auto* arg_type_ptr = arg_type->getType();
     if (!arg_type_ptr->isPointerTy()) {
       return {make_string_error("Error type argument must be a pointer type.")};
     }
 
-    // TODO testing:
     if (auto* arg_type_ptr_cast = dyn_cast<BitCastInst>(arg_type)) {
       arg_type_ptr = arg_type_ptr_cast->getSrcTy();
     }
@@ -206,7 +280,7 @@ class AssertStubCollector {
     }
     auto* typeart_type = ConstantInt::get(IntegerType::get(f_->getContext(), 32), typeart_type_id);
 
-    return TycartAssertArgs{arg_buffer, arg_length, arg_checkpoint_id, type_size, typeart_type, ad};
+    return TypeData{typeart_type_id, type_size, typeart_type};
   }
 };
 
@@ -219,26 +293,41 @@ class AssertStubTransformer {
   }
 
   [[nodiscard]] bool handleTycart(const TycartAssertArgs& ad) const {
-    using namespace llvm;
-    LOG_DEBUG(ad);
+    auto* call_inst = ad.assert.call;
+    return handleTycartAssertCalls(
+        call_inst, decls_->assert_tycart.f,
+        ArrayRef<Value*>{ad.checkpoint_id, ad.buffer, ad.length, ad.type_size, ad.typeart_type_id});
+  }
 
-    auto* call_inst       = ad.assert.call;
-    const bool is_invoke  = llvm::isa<llvm::InvokeInst>(call_inst);
-    auto* target_callback = decls_->assert_tycart.f;
+  [[nodiscard]] bool handleTycartAuto(const TycartAssertArgs& ad) const {
+    auto* call_inst = ad.assert.call;
+
+    return handleTycartAssertCalls(call_inst, decls_->assert_tycart_auto.f,
+                                   ArrayRef<Value*>{ad.checkpoint_id, ad.buffer, ad.type_size, ad.typeart_type_id});
+  }
+
+  [[nodiscard]] bool handleTycartFTI(const TycartAssertArgs& ad) const {
+    auto* call_inst = ad.assert.call;
+
+    return handleTycartAssertCalls(call_inst, decls_->assert_tycart_fti_t.f, ArrayRef<Value*>{ad.typeart_type_id});
+  }
+
+ private:
+  static bool handleTycartAssertCalls(CallBase* call_inst, Function* target_callback,
+                                      ArrayRef<Value*> callback_values) {
+    const bool is_invoke = llvm::isa<llvm::InvokeInst>(call_inst);
 
     if (is_invoke) {
       auto* invoke_inst = llvm::dyn_cast<llvm::InvokeInst>(call_inst);
       IRBuilder<> irb(invoke_inst);
-      irb.CreateInvoke(target_callback, invoke_inst->getNormalDest(), invoke_inst->getUnwindDest(),
-                       ArrayRef<Value*>{ad.checkpoint_id, ad.buffer, ad.length, ad.type_size, ad.typeart_type_id});
+      irb.CreateInvoke(target_callback, invoke_inst->getNormalDest(), invoke_inst->getUnwindDest(), callback_values);
     } else {
       // normal callinst:
       IRBuilder<> irb(call_inst->getNextNode());
-      irb.CreateCall(target_callback,
-                     ArrayRef<Value*>{ad.checkpoint_id, ad.buffer, ad.length, ad.type_size, ad.typeart_type_id});
+      irb.CreateCall(target_callback, callback_values);
     }
-    call_inst->eraseFromParent();
 
+    call_inst->eraseFromParent();
     return true;
   }
 };
@@ -306,12 +395,20 @@ class TyCartPass : public ModulePass {
           // TODO error handling
           break;
         }
-        case analysis::AssertKind::kTycartFtiT:
-          assert(("kTycartFtiT - Not yet supported", false));
+        case analysis::AssertKind::kTycartFtiT: {
+          auto data = collector.handleTycartFTI(ad);
+          if (data) {
+            return transformer.handleTycartFTI(data.get());
+          }
           break;
-        case analysis::AssertKind::kTycartAuto:
-          assert(("kTycartAuto - Not yet supported", false));
+        }
+        case analysis::AssertKind::kTycartAuto: {
+          auto data = collector.handleTycartAuto(ad);
+          if (data) {
+            return transformer.handleTycartAuto(data.get());
+          }
           break;
+        }
         default:
           assert(("Missing case stmt in processTypeAssert", false));
           break;

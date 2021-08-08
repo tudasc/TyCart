@@ -6,10 +6,10 @@
 void foo(const void* data) {
   try {
     double* typeart_type_id_placeholder = nullptr;
-    tycart_assert_stub_(data, typeart_type_id_placeholder, 1, 22);
+    tycart_register_FTI_t_stub_(typeart_type_id_placeholder);
   } catch (...) {
   }
 }
 
 // CHECK-NOT: Error
-// CHECK: invoke void @tycart_assert_(i32 22, i8* %{{[0-9]+}}, i64 1, i64 8, i32 6)
+// CHECK: invoke void @tycart_register_FTI_t_(i32 6)

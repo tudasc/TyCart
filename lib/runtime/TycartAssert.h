@@ -24,6 +24,8 @@ extern "C" {
 #endif  // __cplusplus
 
 void tycart_assert_stub_(const void* pointer, void* tycart_stub_ptr, size_t count, int checkpoint_id);
+void tycart_assert_auto_stub_(const void* pointer, void* tycart_stub_ptr, int checkpoint_id);
+void tycart_register_FTI_t_stub_(const void* ptr);
 
 #ifdef __cplusplus
 }
