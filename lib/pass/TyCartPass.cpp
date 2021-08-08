@@ -222,18 +222,22 @@ class AssertStubTransformer {
     using namespace llvm;
     LOG_DEBUG(ad);
 
-    auto* call_inst      = ad.assert.call;
-    const bool is_invoke = llvm::isa<llvm::InvokeInst>(call_inst);
+    auto* call_inst       = ad.assert.call;
+    const bool is_invoke  = llvm::isa<llvm::InvokeInst>(call_inst);
+    auto* target_callback = decls_->assert_tycart.f;
 
     if (is_invoke) {
+      auto* invoke_inst = llvm::dyn_cast<llvm::InvokeInst>(call_inst);
+      IRBuilder<> irb(invoke_inst);
+      irb.CreateInvoke(target_callback, invoke_inst->getNormalDest(), invoke_inst->getUnwindDest(),
+                       ArrayRef<Value*>{ad.checkpoint_id, ad.buffer, ad.length, ad.type_size, ad.typeart_type_id});
     } else {
       // normal callinst:
-      auto* target_callback = decls_->assert_tycart.f;
       IRBuilder<> irb(call_inst->getNextNode());
       irb.CreateCall(target_callback,
                      ArrayRef<Value*>{ad.checkpoint_id, ad.buffer, ad.length, ad.type_size, ad.typeart_type_id});
-      call_inst->eraseFromParent();
     }
+    call_inst->eraseFromParent();
 
     return true;
   }
