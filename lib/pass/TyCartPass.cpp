@@ -134,6 +134,8 @@ class AssertOpVisitor : public llvm::InstVisitor<AssertOpVisitor> {
 namespace transform {
 
 inline llvm::Error make_string_error(const char* message) {
+  // TODO replace llvm::inconvertibleErrorCode()
+
   return llvm::make_error<llvm::StringError>(llvm::inconvertibleErrorCode(), message);
 }
 
@@ -343,7 +345,7 @@ class TyCartPass : public ModulePass {
   static char ID;  // NOLINT
 
   TyCartPass() : ModulePass(ID) {
-    assert(("Default type file not set", !cl_type_file.empty()));
+    assert((!cl_type_file.empty() && "Default type file not set."));
   }
 
   bool doInitialization(Module& m) override {
@@ -392,7 +394,7 @@ class TyCartPass : public ModulePass {
           if (data) {
             return transformer.handleTycart(data.get());
           }
-          // TODO error handling
+          LOG_ERROR("Error with assert stub: " << *ad.call)
           break;
         }
         case analysis::AssertKind::kTycartFtiT: {
@@ -400,6 +402,7 @@ class TyCartPass : public ModulePass {
           if (data) {
             return transformer.handleTycartFTI(data.get());
           }
+          LOG_ERROR("Error with FTI register stub: " << *ad.call)
           break;
         }
         case analysis::AssertKind::kTycartAuto: {
@@ -407,10 +410,11 @@ class TyCartPass : public ModulePass {
           if (data) {
             return transformer.handleTycartAuto(data.get());
           }
+          LOG_ERROR("Error with assert auto stub: " << *ad.call)
           break;
         }
         default:
-          assert(("Missing case stmt in processTypeAssert", false));
+          llvm_unreachable("Missing case stmt in processTypeAssert");
           break;
       }
       return false;
