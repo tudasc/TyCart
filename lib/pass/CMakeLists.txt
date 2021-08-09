@@ -1,7 +1,5 @@
 set(PASS_SOURCES
   TyCartPass.cpp
-  support/TypeUtil.cpp
-  support/TypeUtil.h
 )
 
 add_llvm_pass_plugin(tycart_TransformPass

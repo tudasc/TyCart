@@ -13,8 +13,8 @@
 #include "TyCartPass.h"
 
 #include "support/Log.h"
-#include "support/TypeUtil.h"
 #include "typegen/TypeGenerator.h"
+#include "typelib/TypeDatabase.h"
 #include "typelib/TypeInterface.h"
 
 #include "llvm/ADT/STLExtras.h"
@@ -272,15 +272,16 @@ class AssertStubCollector {
       arg_type_ptr = arg_type_ptr_cast->getSrcTy();
     }
 
-    auto* type           = arg_type_ptr->getPointerElementType();
-    auto type_size_bytes = util::getTypeSizeInBytes(type, *dl_);
-    auto* type_size      = ConstantInt::get(IntegerType::get(f_->getContext(), 64), type_size_bytes);
-
-    int typeart_type_id = type_gen_->getTypeID(type, *dl_);
+    auto* type                = arg_type_ptr->getPointerElementType();
+    const int typeart_type_id = type_gen_->getTypeID(type, *dl_);
     if (typeart_type_id == TYPEART_UNKNOWN_TYPE) {
       return {make_string_error("Error assert type is not supported/unknown.")};
     }
     auto* typeart_type = ConstantInt::get(IntegerType::get(f_->getContext(), 32), typeart_type_id);
+
+    const auto& type_database = type_gen_->getTypeDatabase();
+    auto type_size_bytes      = type_database.getTypeSize(typeart_type_id);
+    auto* type_size           = ConstantInt::get(IntegerType::get(f_->getContext(), 64), type_size_bytes);
 
     return TypeData{typeart_type_id, type_size, typeart_type};
   }
