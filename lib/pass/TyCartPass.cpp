@@ -12,10 +12,10 @@
 
 #include "TyCartPass.h"
 
+#include "TypeDatabase.h"
+#include "TypeGenerator.h"
+#include "TypeInterface.h"
 #include "support/Log.h"
-#include "typegen/TypeGenerator.h"
-#include "typelib/TypeDatabase.h"
-#include "typelib/TypeInterface.h"
 
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/IR/DataLayout.h"
@@ -166,10 +166,10 @@ llvm::raw_ostream& operator<<(llvm::raw_ostream& os, const TycartAssertArgs& arg
 class AssertStubCollector {
   Function* f_;
   DataLayout* dl_;
-  const typeart::TypeGenerator* type_gen_;
+  typeart::TypeGenerator* type_gen_;
 
  public:
-  AssertStubCollector(Function* f, DataLayout* dl, const typeart::TypeGenerator* type_gen)
+  AssertStubCollector(Function* f, DataLayout* dl, typeart::TypeGenerator* type_gen)
       : f_(f), dl_(dl), type_gen_(type_gen) {
   }
 
@@ -273,7 +273,7 @@ class AssertStubCollector {
     }
 
     auto* type                = arg_type_ptr->getPointerElementType();
-    const int typeart_type_id = type_gen_->getTypeID(type, *dl_);
+    const int typeart_type_id = type_gen_->getOrRegisterType(type, *dl_);
     if (typeart_type_id == TYPEART_UNKNOWN_TYPE) {
       return {make_string_error("Error assert type is not supported/unknown.")};
     }

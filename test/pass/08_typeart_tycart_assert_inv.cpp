@@ -1,5 +1,6 @@
 // RUN: rm types.yaml
 // RUN: %cpp-to-llvm %s | %apply-typeart | %apply-tycart -S | FileCheck %s
+// RUN: %cpp-to-llvm %s | %apply-tycart -S | FileCheck %s
 
 #include "TycartUtil.h"
 
