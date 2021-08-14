@@ -23,9 +23,15 @@
 extern "C" {
 #endif  // __cplusplus
 
-void tycart_assert_stub_(const void* pointer, void* tycart_stub_ptr, size_t count, int checkpoint_id);
-void tycart_assert_auto_stub_(const void* pointer, void* tycart_stub_ptr, int checkpoint_id);
-void tycart_register_FTI_t_stub_(const void* ptr);
+// Assert functions
+void tycart_assert_auto_(int checkpoint_id, const void* pointer, size_t type_size, int type_id);
+void tycart_assert_(int checkpoint_id, const void* pointer, size_t count, size_t type_size, int type_id);
+void tycart_register_FTI_t_(int type_id);
+
+// Mock or "stub" functions of the corresponding assert functions. They ares replaced by the TyCart LLVM pass.
+void tycart_assert_stub_(const void* pointer, void* tycart_stub_ptr, size_t count, int checkpoint_id);  // NOLINT
+void tycart_assert_auto_stub_(const void* pointer, void* tycart_stub_ptr, int checkpoint_id);           // NOLINT
+void tycart_register_FTI_t_stub_(const void* pointer);                                                  // NOLINT
 
 #ifdef __cplusplus
 }

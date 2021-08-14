@@ -29,6 +29,7 @@ add_format_target(
 )
 
 add_subdirectory(lib)
+add_subdirectory(scripts)
 
 enable_testing()
 add_subdirectory(test)

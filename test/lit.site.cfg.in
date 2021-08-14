@@ -17,6 +17,7 @@ config.tycart_base_lib_dir = "@TYCART_BASE_LIBRARY_DIR@"
 config.tycart_pass_dir = "@TYCART_PASS_DIR@"
 config.tycart_rt_dir = "@TYCART_RT_DIR@"
 config.tycart_pass = "$<TARGET_FILE_NAME:tycart::TransformPass>"
+config.tycart_script_dir = "@TYCART_SCRIPT_DIR@"
 
 # Let the main config do the real work.
 config.loaded_site_config = True
