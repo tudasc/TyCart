@@ -1,7 +1,9 @@
 // RUN: %run-tycart %s | FileCheck %s
 
 #include "../../lib/runtime/TycartAssert.h"
-#include "stdlib.h"
+
+#include <stdio.h>
+#include <stdlib.h>
 
 int main() {
   const int size = 10;

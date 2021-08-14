@@ -123,7 +123,7 @@ class AssertHandler {
     }
   }
 
-  static size_t get_allocation_count(const void* pointer, const int type_id) {
+  static size_t get_allocation_count(const void* pointer, const int type_id, AssertKind assertk = AssertKind::kStrict) {
     int queried_type_id{-1};
     size_t count{0};
 
@@ -133,7 +133,7 @@ class AssertHandler {
       fail_typeart_status(status);
     }
 
-    if (type_id != queried_type_id) {
+    if (type_id != queried_type_id && assertk == AssertKind::kStrict) {
       fail_type_mismatch(type_id, queried_type_id);
     }
 
@@ -209,7 +209,7 @@ void tycart_assert_(int /*checkpoint_id*/, const void* pointer, size_t count, si
 void tycart_assert_auto_(int /*checkpoint_id*/, const void* pointer, size_t /*type_size*/, int type_id) {
   const void* return_address = __builtin_return_address(0);
   const auto assert_mode     = tycart::Runtime::get().mode();
-  const size_t count         = tycart::AssertHandler::get_allocation_count(pointer, type_id);
+  const size_t count         = tycart::AssertHandler::get_allocation_count(pointer, type_id, assert_mode);
   tycart::AssertHandler::do_assert(pointer, type_id, count, assert_mode);
 }
 

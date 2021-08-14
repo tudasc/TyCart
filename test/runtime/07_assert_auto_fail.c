@@ -2,7 +2,9 @@
 // XFAIL: *
 
 #include "../../lib/runtime/TycartAssert.h"
-#include "stdlib.h"
+
+#include <stdio.h>
+#include <stdlib.h>
 
 int main() {
   const int size = 10;
@@ -10,7 +12,7 @@ int main() {
 
   {
     double* data_stub = NULL;
-    tycart_assert_stub_((const void*)data, data_stub, size, 22);
+    tycart_assert_auto_stub_((const void*)data, data_stub, 22);
   }
 
   printf("Test succeeded\n");
