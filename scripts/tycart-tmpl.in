@@ -1,0 +1,161 @@
+#!/bin/bash
+#
+# TyCart library
+#
+# Copyright (c) 2021-2021 TyCart Authors
+# Distributed under the BSD 3-Clause license.
+# (See accompanying file LICENSE or copy at
+# https:#opensource.org/licenses/BSD-3-Clause)
+#
+# Project home: https://github.com/tudasc/TyCart
+#
+# SPDX-License-Identifier: BSD-3-Clause
+#
+# Originally based on the TypeART library scripts
+
+function parse_cmd_line() {
+  readonly source_file=$1
+  optimize=""
+
+  shift # skip over $1
+  while (("$#")); do
+    case "$1" in
+    -o | --optimization)
+      if [ -n "$2" ] && [ "${2:0:2}" == "-O" ]; then
+        optimize=$2
+        shift 2
+      else
+        echo "Error: Optimization argument for $1 is erroneous: $2" >&2
+        exit 1
+      fi
+      ;;
+    --object)
+      if [ -n "$2" ]; then
+        object_file="$2"
+        shift 2
+      else
+        echo "Error: Object file argument for $1 is missing." >&2
+        shift
+      fi
+      ;;
+    --executable)
+      if [ -n "$2" ]; then
+        exe_file="$2"
+        shift 2
+      else
+        echo "Error: Executable file argument for $1 is missing." >&2
+        shift
+      fi
+      ;;
+    *) # preserve other arguments
+      shift
+      ;;
+    esac
+  done
+
+  if [ -z "${object_file}" ]; then
+    # use filename(source_file).o
+    object_file="${source_file%.*}".o
+  fi
+
+  if [ -z "${exe_file}" ]; then
+    # use filename(source_file).o
+    exe_file="${source_file%.*}".exe
+  fi
+
+  if [ -z "${optimize}" ]; then
+    optimize=-O0
+  fi
+}
+
+function typeart_global_init() {
+  local -r typeart_analysis_pass="$<TARGET_FILE:typeart::MemOpFinderPass>"
+  local -r typeart_pass="$<TARGET_FILE:typeart::TransformPass>"
+  # shellcheck disable=SC2027
+  readonly typeart_plugin="-load "${typeart_analysis_pass}" \
+                          -load "${typeart_pass}" -typeart"
+  readonly typeart_stack_mode_args="-typeart-no-heap -typeart-alloca -typeart-stats -call-filter -call-filter-str=tycart*"
+  readonly typeart_heap_mode_args="-typeart-no-heap=false -typeart-stats"
+  readonly typeart_combined_mode_args="${typeart_heap_mode_args} -typeart-alloca"
+
+  local -r typeart_lib_dir="$<TARGET_FILE_DIR:typeart::Runtime>"
+  readonly typeart_ldflags="-L${typeart_lib_dir}/ \
+                   -Wl,-rpath,${typeart_lib_dir}/ \
+                   -l$<TARGET_FILE_BASE_NAME:typeart::Runtime>"
+}
+
+function global_init() {
+  readonly opt_tool=@OPT_EXEC@
+  readonly llc_tool=@LLC_EXEC@
+
+  typeart_global_init
+
+  local -r tycart_transform_pass="$<TARGET_FILE:tycart::TransformPass>"
+  local -r tycart_lib_dir="$<TARGET_FILE_DIR:tycart::Runtime>"
+
+  readonly tycart_includes="@TYCART_INCLUDE_DIRS@"
+  readonly tycart_ldflags="-L${tycart_lib_dir}/ \
+                   -Wl,-rpath,${tycart_lib_dir}/ \
+                   -l$<TARGET_FILE_BASE_NAME:tycart::Runtime>"
+
+  readonly tycart_plugin="-load "${tycart_transform_pass}" -tycart"
+}
+
+function toolchain_init() {
+  readonly extension="${source_file##*.}"
+
+  case "$extension" in
+  c)
+    compiler=@CLANG_EXEC@
+    ;;
+  cc | cxx | cpp)
+    compiler=@CLANGCXX_EXEC@
+    ;;
+  esac
+
+  readonly tycart_san_flags="@TYCART_SAN_FLAGS@"
+
+  if [ -e "types.yaml" ]; then
+    rm "types.yaml"
+  fi
+}
+
+function make_with_optim() {
+  # Order: typeart heap, tycart, optimize, typeart alloca with filter, object file
+
+  $compiler ${tycart_includes} ${tycart_san_flags} \
+    -O1 -Xclang -disable-llvm-passes -S -emit-llvm "${source_file}" -o - |
+    $opt_tool ${typeart_plugin} ${typeart_heap_mode_args} |
+    $opt_tool ${tycart_plugin} ${tycart_args} |
+    $opt_tool ${optimize} -S |
+    $opt_tool ${typeart_plugin} ${typeart_stack_mode_args} |
+    $llc_tool -x=ir ${llc_flags} -o "${object_file}"
+}
+
+function compile() {
+  local llc_flags="--filetype=obj"
+  make_with_optim
+}
+
+function main_link() {
+  $compiler ${tycart_san_flags} ${typeart_ldflags} ${tycart_ldflags} "${object_file}" -o "${exe_file}"
+}
+
+function execute() {
+  export TSAN_OPTIONS='ignore_noninstrumented_modules=1'
+  echo -e Executing with runtime lib
+  LD_LIBRARY_PATH="$LD_LIBRARY_PATH:${tycart_lib_dir}" "${exe_file}"
+}
+
+function main_in() {
+  parse_cmd_line "$@"
+  global_init
+  toolchain_init
+  compile
+  if [ @TYCART_RUN_SCRIPT@ == 1 ]; then
+    main_link
+    execute
+  fi
+}
+
+main_in "$@"
