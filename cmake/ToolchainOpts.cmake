@@ -22,7 +22,7 @@ set(ENABLE_MPI_WRAPPER OFF)
 FetchContent_Declare(
   typeart
   GIT_REPOSITORY https://github.com/tudasc/TypeART.git
-  GIT_TAG devel
+  GIT_TAG v1.7
   GIT_SHALLOW 1
 )
 FetchContent_MakeAvailable(typeart)
