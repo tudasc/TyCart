@@ -69,11 +69,9 @@ function parse_cmd_line() {
 }
 
 function typeart_global_init() {
-  local -r typeart_analysis_pass="$<TARGET_FILE:typeart::MemOpFinderPass>"
   local -r typeart_pass="$<TARGET_FILE:typeart::TransformPass>"
   # shellcheck disable=SC2027
-  readonly typeart_plugin="-load "${typeart_analysis_pass}" \
-                          -load "${typeart_pass}" -typeart"
+  readonly typeart_plugin="-load "${typeart_pass}" -typeart"
   readonly typeart_stack_mode_args="-typeart-no-heap -typeart-alloca -typeart-stats -call-filter -call-filter-str=tycart*"
   readonly typeart_heap_mode_args="-typeart-no-heap=false -typeart-stats"
   readonly typeart_combined_mode_args="${typeart_heap_mode_args} -typeart-alloca"
